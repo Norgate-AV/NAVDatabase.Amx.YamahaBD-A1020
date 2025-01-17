@@ -48,7 +48,9 @@ DEFINE_DEVICE
 (***********************************************************)
 DEFINE_CONSTANT
 
-constant long TL_IP_CHECK = 1
+constant long TL_SOCKET_CHECK = 1
+
+constant long TL_SOCKET_CHECK_INTERVAL[] = { 3000 }
 
 (***********************************************************)
 (*              DATA TYPE DEFINITIONS GO BELOW             *)
@@ -59,17 +61,16 @@ DEFINE_TYPE
 (*               VARIABLE DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_VARIABLE
-volatile long ltIPCheck[] = { 3000 }
 
-volatile integer iRequiredTransport
+volatile integer requiredTransport
 
-volatile integer iSemaphore
-volatile char cRxBuffer[NAV_MAX_BUFFER]
+volatile char semaphore
+volatile char rxBuffer[NAV_MAX_BUFFER]
 
-volatile integer iCommunicating
-volatile char cIPAddress[15]
-volatile integer iTCPPort
-volatile integer iIPConnected = false
+volatile char communicating
+volatile char address[15]
+volatile integer port
+volatile char connected = false
 
 (***********************************************************)
 (*               LATCHING DEFINITIONS GO BELOW             *)
@@ -86,35 +87,40 @@ DEFINE_MUTUALLY_EXCLUSIVE
 (***********************************************************)
 (* EXAMPLE: DEFINE_FUNCTION <RETURN_TYPE> <NAME> (<PARAMETERS>) *)
 (* EXAMPLE: DEFINE_CALL '<NAME>' (<PARAMETERS>) *)
-define_function SendStringRaw(char cParam[]) {
-    NAVLog(NAVFormatStandardLogMessage(NAV_STANDARD_LOG_MESSAGE_TYPE_STRING_TO, dvPort, cParam))
-    //NAVLog(NAVFormatStandardLogMessage(NAV_STANDARD_LOG_MESSAGE_TYPE_STRING_TO, dvPort, cParam))
-    send_string dvPort,"cParam"
+
+define_function SendStringRaw(char payload[]) {
+    NAVErrorLog(NAV_LOG_LEVEL_DEBUG, NAVFormatStandardLogMessage(NAV_STANDARD_LOG_MESSAGE_TYPE_STRING_TO, dvPort, payload))
+    send_string dvPort, "payload"
 }
 
-define_function SendString(char cParam[]) {
-    SendStringRaw("NAV_STX,'07C',cParam,NAV_ETX")
+
+define_function SendString(char payload[]) {
+    SendStringRaw("NAV_STX, '07C', payload, NAV_ETX")
 }
 
-define_function MaintainIPConnection() {
-    if (!iIPConnected) {
-        NAVClientSocketOpen(dvPort.port,cIPAddress,iTCPPort,IP_TCP)
+
+define_function MaintainSocketConnection() {
+    if (!connected) {
+        NAVClientSocketOpen(dvPort.PORT, address, port, IP_TCP)
     }
 }
+
 
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
 (***********************************************************)
 DEFINE_START {
-    create_buffer dvPort, cRxBuffer
+    create_buffer dvPort, rxBuffer
 }
+
 (***********************************************************)
 (*                THE EVENTS GO BELOW                      *)
 (***********************************************************)
 DEFINE_EVENT
+
 data_event[dvPort] {
     online: {
-        if (data.device.number <> 0) {
+        if (data.device.number != 0) {
             send_command data.device,"'SET BAUD 9600,N,8,1 485 DISABLE'"
             send_command data.device,"'B9MOFF'"
             send_command data.device,"'CHARD-0'"
@@ -123,59 +129,52 @@ data_event[dvPort] {
         }
 
         if (data.device.number == 0) {
-            iIPConnected = true
+            connected = true
         }
 
-        SendStringRaw("NAV_STX,'10000',NAV_ETX")     //Start RS232
+        SendStringRaw("NAV_STX, '10000', NAV_ETX")     //Start RS232
+
         [vdvObject,DATA_INITIALIZED] = true
         [vdvObject,DEVICE_COMMUNICATING] = true
     }
     string: {
-        iCommunicating = true
+        communicating = true
         [vdvObject,DATA_INITIALIZED] = true
-        //NAVLog("'String To Bluray: ',data.text")
-        NAVLog(NAVFormatStandardLogMessage(NAV_STANDARD_LOG_MESSAGE_TYPE_STRING_FROM, data.device, data.text))
+        NAVErrorLog(NAV_LOG_LEVEL_DEBUG, NAVFormatStandardLogMessage(NAV_STANDARD_LOG_MESSAGE_TYPE_STRING_FROM, data.device, data.text))
     }
     offline: {
         if (data.device.number == 0) {
             NAVClientSocketClose(dvPort.port)
-            iIPConnected = false
-            //iCommunicating = false
+            connected = false
         }
     }
     onerror: {
         if (data.device.number == 0) {
-            //iIPConnected = false
-            //iCommunicating = false
         }
     }
 }
 
 data_event[vdvObject] {
     command: {
-        stack_var char cCmdHeader[NAV_MAX_CHARS]
-        stack_var char cCmdParam[2][NAV_MAX_CHARS]
+        stack_var _NAVSnapiMessage message
 
-        NAVLog(NAVFormatStandardLogMessage(NAV_STANDARD_LOG_MESSAGE_TYPE_COMMAND_FROM, data.device, data.text))
+        NAVErrorLog(NAV_LOG_LEVEL_DEBUG, NAVFormatStandardLogMessage(NAV_STANDARD_LOG_MESSAGE_TYPE_COMMAND_FROM, data.device, data.text))
 
-        cCmdHeader = DuetParseCmdHeader(data.text)
-        cCmdParam[1] = DuetParseCmdParam(data.text)
-        cCmdParam[2] = DuetParseCmdParam(data.text)
+        NAVParseSnapiMessage(data.text, message)
 
-        switch (cCmdHeader) {
+        switch (message.Header) {
             case 'PROPERTY': {
-                switch (cCmdParam[1]) {
+                switch (message.Parameter[1]) {
                     case 'IP_ADDRESS': {
-                        cIPAddress = cCmdParam[2]
-                        //timeline_create(TL_IP_CHECK,ltIPCheck,length_array(ltIPCheck),timeline_absolute,timeline_repeat)
+                        address = message.Parameter[2]
                     }
                     case 'TCP_PORT': {
-                        iTCPPort = atoi(cCmdParam[2])
-                        timeline_create(TL_IP_CHECK,ltIPCheck,length_array(ltIPCheck),timeline_absolute,timeline_repeat)
+                        port = atoi(message.Parameter[2])
+                        NAVTimelineStart(TL_SOCKET_CHECK, TL_SOCKET_CHECK_INTERVAL, timeline_absolute, timeline_repeat)
                     }
                 }
             }
-            case 'PASSTHRU': { SendString(cCmdParam[1]) }
+            case 'PASSTHRU': { SendString(message.Parameter[1]) }
         }
     }
 }
@@ -208,10 +207,9 @@ channel_event[vdvObject, 0] {
     }
 }
 
-timeline_event[TL_IP_CHECK] { MaintainIPConnection() }
+timeline_event[TL_SOCKET_CHECK] { MaintainSocketConnection() }
 
 (***********************************************************)
 (*                     END OF PROGRAM                      *)
 (*        DO NOT PUT ANY CODE BELOW THIS COMMENT           *)
 (***********************************************************)
-

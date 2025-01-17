@@ -4,7 +4,6 @@ MODULE_NAME='mYamahaBD-A1020UIArray'    (
                                         )
 
 (***********************************************************)
-
 #include 'NAVFoundation.ModuleBase.axi'
 #include 'NAVFoundation.UIUtils.axi'
 
@@ -82,10 +81,12 @@ DEFINE_MUTUALLY_EXCLUSIVE
 DEFINE_START {
 
 }
+
 (***********************************************************)
 (*                THE EVENTS GO BELOW                      *)
 (***********************************************************)
 DEFINE_EVENT
+
 button_event[dvTP, 0] {
     push: {
         pulse[vdvObject, button.input.channel]
@@ -96,4 +97,3 @@ button_event[dvTP, 0] {
 (*                     END OF PROGRAM                      *)
 (*        DO NOT PUT ANY CODE BELOW THIS COMMENT           *)
 (***********************************************************)
-
