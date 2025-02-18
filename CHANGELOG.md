@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.0](https://github.com/Norgate-AV/NAVDatabase.Amx.YamahaBD-A1020/compare/v1.0.1...v1.1.0) (2025-02-18)
+
+### 🌟 Features
+
+- bump NAVFoundation.Amx to 1.27.0 ([3de6124](https://github.com/Norgate-AV/NAVDatabase.Amx.YamahaBD-A1020/commit/3de612422df5611e4ebd84966d8f799060d32d50))
+
 ## [1.0.1](https://github.com/Norgate-AV/NAVDatabase.Amx.YamahaBD-A1020/compare/v1.0.0...v1.0.1) (2025-02-16)
 
 ### 🚀 Performance
