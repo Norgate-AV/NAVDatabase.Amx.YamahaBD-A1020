@@ -6,6 +6,7 @@ MODULE_NAME='mYamahaBD-A1020'   (
 (***********************************************************)
 #include 'NAVFoundation.ModuleBase.axi'
 #include 'NAVFoundation.SocketUtils.axi'
+#include 'NAVFoundation.TimelineUtils.axi'
 
 /*
  _   _                       _          ___     __
@@ -180,7 +181,10 @@ data_event[vdvObject] {
                     }
                     case 'TCP_PORT': {
                         port = atoi(message.Parameter[2])
-                        NAVTimelineStart(TL_SOCKET_CHECK, TL_SOCKET_CHECK_INTERVAL, timeline_absolute, timeline_repeat)
+                        NAVTimelineStart(TL_SOCKET_CHECK,
+                                        TL_SOCKET_CHECK_INTERVAL,
+                                        TIMELINE_ABSOLUTE,
+                                        TIMELINE_REPEAT)
                     }
                 }
             }
