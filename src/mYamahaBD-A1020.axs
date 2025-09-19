@@ -4,7 +4,7 @@ MODULE_NAME='mYamahaBD-A1020'   (
                                 )
 
 (***********************************************************)
-#include 'NAVFoundation.ModuleBase.axi'
+#include 'NAVFoundation.SnapiHelpers.axi'
 #include 'NAVFoundation.SocketUtils.axi'
 #include 'NAVFoundation.TimelineUtils.axi'
 
